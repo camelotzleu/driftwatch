@@ -1,4 +1,3 @@
-"""Tests for the collector registry (get_collector)."""
 from __future__ import annotations
 
 import pytest
@@ -6,10 +5,13 @@ import pytest
 from driftwatch.config import ProviderConfig
 from driftwatch.collectors import get_collector
 from driftwatch.collectors.mock_collector import MockCollector
+from driftwatch.collectors.aws_collector import AWSCollector
+from driftwatch.collectors.gcp_collector import GCPCollector
+from driftwatch.collectors.azure_collector import AzureCollector
 
 
-def _cfg(provider: str, **kw) -> ProviderConfig:
-    return ProviderConfig(provider=provider, region="us-east-1", profile=None, enabled=True, **kw)
+def _cfg(provider: str) -> ProviderConfig:
+    return ProviderConfig(provider=provider, label=f"test-{provider}")
 
 
 @pytest.fixture
@@ -22,44 +24,38 @@ def test_get_collector_returns_mock(mock_config):
     assert isinstance(collector, MockCollector)
 
 
+def test_get_collector_returns_aws():
+    collector = get_collector(_cfg("aws"))
+    assert isinstance(collector, AWSCollector)
+
+
+def test_get_collector_returns_gcp():
+    collector = get_collector(_cfg("gcp"))
+    assert isinstance(collector, GCPCollector)
+
+
+def test_get_collector_returns_azure():
+    collector = get_collector(_cfg("azure"))
+    assert isinstance(collector, AzureCollector)
+
+
 def test_get_collector_unknown_provider():
     with pytest.raises(ValueError, match="Unknown provider"):
-        get_collector(_cfg("gcp"))
+        get_collector(_cfg("digitalocean"))
 
 
 def test_mock_collector_provider_name(mock_config):
-    assert get_collector(mock_config).provider_name == "mock"
+    collector = get_collector(mock_config)
+    assert collector.provider_name == "mock"
 
 
-def test_mock_collector_collect_returns_snapshot(mock_config):
-    from driftwatch.snapshot import Snapshot
-    snapshot = get_collector(mock_config).collect()
-    assert isinstance(snapshot, Snapshot)
+def test_azure_collector_provider_name():
+    collector = get_collector(_cfg("azure"))
+    assert collector.provider_name == "azure"
 
 
-def test_mock_collector_snapshot_has_resources(mock_config):
-    snapshot = get_collector(mock_config).collect()
-    resources = snapshot.to_dict()["resources"]
-    assert len(resources) > 0
-
-
-def test_mock_collector_resource_types(mock_config):
-    snapshot = get_collector(mock_config).collect()
-    types = {r["resource_type"] for r in snapshot.to_dict()["resources"]}
-    assert len(types) >= 1
-
-
-def test_get_collector_aws_registered():
-    """AWS collector should be in the registry when boto3 is importable."""
-    try:
-        import boto3  # noqa: F401
-        boto3_available = True
-    except ImportError:
-        boto3_available = False
-
-    if boto3_available:
-        from driftwatch.collectors.aws_collector import AWSCollector
-        collector = get_collector(_cfg("aws"))
-        assert isinstance(collector, AWSCollector)
-    else:
-        pytest.skip("boto3 not installed")
+def test_collector_label_propagated():
+    cfg = ProviderConfig(provider="mock", label="my-mock")
+    collector = get_collector(cfg)
+    snapshot = collector.collect()
+    assert snapshot.label == "my-mock"

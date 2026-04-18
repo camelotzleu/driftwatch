@@ -12,6 +12,15 @@ from driftwatch.notifier import NotifierConfig, send_webhook
 from driftwatch.reporter import render
 
 
+def _resolve_webhook_url(args: argparse.Namespace, cfg) -> str | None:
+    """Return the webhook URL from CLI args or config, preferring CLI arg."""
+    if args.webhook:
+        return args.webhook
+    if cfg.notify and cfg.notify.webhook_url:
+        return cfg.notify.webhook_url
+    return None
+
+
 def cmd_notify(args: argparse.Namespace) -> int:
     cfg = load_config(args.config)
     baseline = load_baseline(cfg)
@@ -29,7 +38,7 @@ def cmd_notify(args: argparse.Namespace) -> int:
         print("No drift detected — nothing to notify.")
         return 0
 
-    webhook_url = args.webhook or (cfg.notify.webhook_url if cfg.notify else None)
+    webhook_url = _resolve_webhook_url(args, cfg)
     if not webhook_url:
         print("No webhook URL configured. Use --webhook or set notify.webhook_url in config.", file=sys.stderr)
         return 1

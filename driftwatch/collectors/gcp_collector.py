@@ -67,4 +67,17 @@ class GCPCollector(BaseCollector):
                 ni.get("network", "").split("/")[-1]
                 for ni in instance.get("networkInterfaces", [])
             ],
+            "disks": self._extract_disks(instance),
         }
+
+    def _extract_disks(self, instance: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract disk attachment info from an instance resource."""
+        disks = []
+        for disk in instance.get("disks", []):
+            disks.append({
+                "source": disk.get("source", "").split("/")[-1],
+                "boot": disk.get("boot", False),
+                "auto_delete": disk.get("autoDelete", False),
+                "mode": disk.get("mode"),
+            })
+        return disks

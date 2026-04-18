@@ -1,0 +1,23 @@
+# driftwatch configuration example
+# Copy to driftwatch.yaml and adjust to your environment.
+
+# Cloud providers to monitor for drift
+providers:
+  - name: aws
+    region: us-east-1
+    profile: default        # optional AWS CLI profile
+  - name: aws
+    region: eu-west-1
+    profile: prod
+
+# Output format: table | json | yaml
+output_format: table
+
+# Top-level keys to exclude from drift comparison
+ignore_keys:
+  - tags
+  - last_modified
+  - creation_date
+
+# Path to the baseline snapshot file used for comparison
+baseline_path: baseline.json

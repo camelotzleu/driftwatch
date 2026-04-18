@@ -1,52 +1,53 @@
-from __future__ import annotations
-
-from typing import Any, Dict, List
-
 from driftwatch.collectors.base import BaseCollector
-from driftwatch.config import ProviderConfig
 from driftwatch.snapshot import Snapshot
+from driftwatch.config import ProviderConfig
 
 
 class AzureCollector(BaseCollector):
-    """Collector for Azure virtual machine instances."""
+    def __init__(self, config: ProviderConfig):
+        super().__init__(config)
+        self._client = None
 
     @property
     def provider_name(self) -> str:
         return "azure"
 
-    def collect(self) -> Snapshot:
-        try:
-            from azure.identity import DefaultAzureCredential
-            from azure.mgmt.compute import ComputeManagementClient
-        except ImportError as exc:  # pragma: no cover
-            raise RuntimeError(
-                "azure-mgmt-compute and azure-identity packages are required for Azure collection"
-            ) from exc
+    def _get_client(self):
+        if self._client is None:
+            try:
+                from azure.mgmt.compute import ComputeManagementClient
+                from azure.identity import DefaultAzureCredential
+                credential = DefaultAzureCredential()
+                subscription_id = self.config.credentials.get("subscription_id", "")
+                self._client = ComputeManagementClient(credential, subscription_id)
+            except ImportError:
+                raise RuntimeError("azure-mgmt-compute and azure-identity are required for Azure support")
+        return self._client
 
+    def collect(self, client=None) -> Snapshot:
         snapshot = self._make_snapshot()
-        subscription_id = self._config.extra.get("subscription_id", "")
-        credential = DefaultAzureCredential()
-        client = ComputeManagementClient(credential, subscription_id)
-
-        for vm in client.virtual_machines.list_all():
-            resource_id = vm.id or vm.name
+        c = client or self._get_client()
+        resource_group = self.config.credentials.get("resource_group", "")
+        vms = c.virtual_machines.list(resource_group) if resource_group else c.virtual_machines.list_all()
+        for vm in vms:
             attrs = self._extract_attributes(vm)
-            snapshot.add(resource_id=resource_id, resource_type="azure_vm", attributes=attrs)
-
+            snapshot.add(str(vm.id), "azure_vm", attrs)
         return snapshot
 
-    def _extract_attributes(self, vm: Any) -> Dict[str, Any]:
-        attrs: Dict[str, Any] = {}
-        if vm.location:
-            attrs["location"] = vm.location
-        if vm.tags:
-            attrs["tags"] = dict(vm.tags)
-        if vm.hardware_profile:
-            attrs["vm_size"] = vm.hardware_profile.vm_size
-        if vm.storage_profile and vm.storage_profile.os_disk:
-            attrs["os_disk_type"] = vm.storage_profile.os_disk.os_type
-        if vm.os_profile:
-            attrs["computer_name"] = vm.os_profile.computer_name
-        if vm.provisioning_state:
-            attrs["provisioning_state"] = vm.provisioning_state
+    def _extract_attributes(self, vm) -> dict:
+        attrs = {
+            "name": vm.name,
+            "location": getattr(vm, "location", None),
+            "vm_size": None,
+            "os_type": None,
+            "tags": dict(vm.tags) if getattr(vm, "tags", None) else {},
+        }
+        hw = getattr(vm, "hardware_profile", None)
+        if hw:
+            attrs["vm_size"] = getattr(hw, "vm_size", None)
+        storage = getattr(vm, "storage_profile", None)
+        if storage:
+            os_disk = getattr(storage, "os_disk", None)
+            if os_disk:
+                attrs["os_type"] = getattr(os_disk, "os_type", None)
         return attrs

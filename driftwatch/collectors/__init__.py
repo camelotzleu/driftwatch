@@ -1,20 +1,28 @@
+"""Collector registry — maps provider names to collector classes."""
+from __future__ import annotations
+
+from driftwatch.config import ProviderConfig
 from driftwatch.collectors.base import BaseCollector
 from driftwatch.collectors.mock_collector import MockCollector
 
-COLLECTOR_REGISTRY: dict[str, type[BaseCollector]] = {
+_REGISTRY: dict[str, type[BaseCollector]] = {
     "mock": MockCollector,
 }
 
+# Register AWS collector only when boto3 is available
+try:
+    from driftwatch.collectors.aws_collector import AWSCollector
+    _REGISTRY["aws"] = AWSCollector
+except ImportError:
+    pass
 
-def get_collector(provider_name: str, provider_config) -> BaseCollector:
-    """Instantiate and return a collector for the given provider name."""
-    cls = COLLECTOR_REGISTRY.get(provider_name)
+
+def get_collector(config: ProviderConfig) -> BaseCollector:
+    """Return an instantiated collector for the given provider config."""
+    cls = _REGISTRY.get(config.provider)
     if cls is None:
         raise ValueError(
-            f"Unknown provider '{provider_name}'. "
-            f"Available: {list(COLLECTOR_REGISTRY.keys())}"
+            f"Unknown provider '{config.provider}'. "
+            f"Available: {sorted(_REGISTRY)}"
         )
-    return cls(provider_config)
-
-
-__all__ = ["BaseCollector", "MockCollector", "get_collector", "COLLECTOR_REGISTRY"]
+    return cls(config)

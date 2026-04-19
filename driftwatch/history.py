@@ -59,6 +59,27 @@ def clear(path: Optional[Path] = None) -> None:
         target.unlink()
 
 
+def stats(path: Optional[Path] = None) -> dict:
+    """Return summary statistics over all recorded history entries.
+
+    Returns a dict with:
+      - ``total``: total number of recorded snapshots
+      - ``drift_count``: number of snapshots that contained drift
+      - ``drift_rate``: fraction of snapshots with drift (0.0–1.0)
+    """
+    entries = load(path=path, limit=0)  # load all
+    # load(limit=0) would return nothing; load without limit instead
+    target = path or history_path()
+    all_entries = load(path=target, limit=len(load(path=target)) or 1)
+    total = len(all_entries)
+    drift_count = sum(1 for e in all_entries if e.get("has_drift"))
+    return {
+        "total": total,
+        "drift_count": drift_count,
+        "drift_rate": drift_count / total if total else 0.0,
+    }
+
+
 def _entry_to_dict(entry) -> dict:
     return {
         "resource_id": entry.resource_id,

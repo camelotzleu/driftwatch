@@ -87,7 +87,4 @@ def test_summary_counts():
     old = _snap(r_rem, r_old)
     new = _snap(r_add, r_new)
     report = diff_baselines(old, new)
-    s = report.summary()
-    assert s["added"] == 1
-    assert s["removed"] == 1
-    assert s["changed"] == 1
+    assert report.summary() == {"added": 1, "removed": 1, "changed": 1}

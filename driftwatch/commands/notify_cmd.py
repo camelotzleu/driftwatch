@@ -22,6 +22,17 @@ def _resolve_webhook_url(args: argparse.Namespace, cfg) -> str | None:
 
 
 def cmd_notify(args: argparse.Namespace) -> int:
+    """Run the notify sub-command.
+
+    Collects current state, compares it against the saved baseline, renders
+    the drift report, and — when drift is detected — posts a notification to
+    the configured webhook URL.
+
+    Returns:
+        0  — success (no drift, or notification sent).
+        1  — configuration / baseline error.
+        2  — webhook delivery failure.
+    """
     cfg = load_config(args.config)
     baseline = load_baseline(cfg)
     if baseline is None:

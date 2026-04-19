@@ -11,11 +11,15 @@ class TagFilter:
     excluded: Dict[str, str] = field(default_factory=dict)
 
 
+def _get_resource_tags(entry: DriftEntry) -> dict:
+    """Extract the tags dict from a DriftEntry's attributes, preferring after-state."""
+    attrs = entry.attributes_after or entry.attributes_before or {}
+    resource_tags = attrs.get("tags", {})
+    return resource_tags if isinstance(resource_tags, dict) else {}
+
+
 def _entry_matches(entry: DriftEntry, tag_filter: TagFilter) -> bool:
-    tags = entry.attributes_after or entry.attributes_before or {}
-    resource_tags = tags.get("tags", {})
-    if not isinstance(resource_tags, dict):
-        resource_tags = {}
+    resource_tags = _get_resource_tags(entry)
 
     for key, value in tag_filter.required.items():
         if resource_tags.get(key) != value:

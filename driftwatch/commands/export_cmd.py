@@ -24,15 +24,18 @@ def cmd_export(args: argparse.Namespace) -> int:
         print(f"[error] no baseline found for provider '{args.provider}'", file=sys.stderr)
         return 1
 
-    from driftwatch.differ import compare as diff_compare
-    report: DriftReport = diff_compare(base, current)
+    report: DriftReport = compare(base, current)
 
     fmt = args.format.lower()
     output = exporter.export(report, fmt)
 
     if args.output:
-        with open(args.output, "w", encoding="utf-8") as fh:
-            fh.write(output)
+        try:
+            with open(args.output, "w", encoding="utf-8") as fh:
+                fh.write(output)
+        except OSError as exc:
+            print(f"[error] could not write to '{args.output}': {exc}", file=sys.stderr)
+            return 1
         print(f"[ok] exported {fmt} report to {args.output}")
     else:
         print(output)

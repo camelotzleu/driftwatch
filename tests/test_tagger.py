@@ -46,6 +46,20 @@ def test_entry_matches_excluded_keeps_others():
     assert _entry_matches(e, tf) is True
 
 
+def test_entry_matches_missing_tag_key():
+    """An entry missing a required tag key entirely should not match."""
+    e = _entry(tags={"team": "ops"})
+    tf = TagFilter(required={"env": "prod"})
+    assert _entry_matches(e, tf) is False
+
+
+def test_entry_matches_excluded_missing_key():
+    """An entry missing an excluded tag key should not be excluded."""
+    e = _entry(tags={"team": "ops"})
+    tf = TagFilter(excluded={"env": "prod"})
+    assert _entry_matches(e, tf) is True
+
+
 def test_filter_report_reduces_entries():
     entries = [
         _entry(tags={"env": "prod"}),

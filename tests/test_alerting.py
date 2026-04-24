@@ -58,6 +58,15 @@ def test_evaluate_filters_by_resource_type():
     assert len(results[0].matched_entries) == 1
 
 
+def test_evaluate_filters_by_kind():
+    """Entries with non-matching kind should be excluded from matched_entries."""
+    rule = AlertRule(name="added-only", kinds=["added"])
+    report = _report(_entry(kind="added"), _entry(kind="changed"), _entry(kind="added"))
+    results = evaluate(report, [rule])
+    assert len(results[0].matched_entries) == 2
+    assert all(e.kind == "added" for e in results[0].matched_entries)
+
+
 def test_rules_from_dict():
     data = [
         {"name": "critical-rule", "min_changes": 3, "providers": ["aws"], "severity": "critical"},

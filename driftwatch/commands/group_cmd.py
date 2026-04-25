@@ -11,7 +11,16 @@ from driftwatch.differ_grouper import group_report, GroupBy
 from driftwatch.collectors import get_collector
 
 
+def _print_text_report(grp) -> None:
+    """Print a grouped drift report in human-readable text format."""
+    for key, g in grp.groups.items():
+        print(f"[{key}] {g.count} entr{'y' if g.count == 1 else 'ies'}")
+        for e in g.entries:
+            print(f"  {e.change_type:8s}  {e.resource_id}  ({e.kind})")
+
+
 def cmd_group(args: argparse.Namespace) -> int:
+    """Run the group command: collect a snapshot, compare to baseline, and group drift."""
     cfg = load_config()
     provider_cfg = cfg.providers.get(args.provider)
     if provider_cfg is None:
@@ -36,10 +45,7 @@ def cmd_group(args: argparse.Namespace) -> int:
     if args.format == "json":
         print(json.dumps(grp.to_dict(), indent=2))
     else:
-        for key, g in grp.groups.items():
-            print(f"[{key}] {g.count} entries")
-            for e in g.entries:
-                print(f"  {e.change_type:8s}  {e.resource_id}  ({e.kind})")
+        _print_text_report(grp)
     return 0
 
 

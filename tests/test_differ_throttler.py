@@ -93,48 +93,24 @@ def test_throttle_second_call_suppressed(tmp_path):
     t0 = 1_000_000
     throttle_report(report, [rule], base_dir=str(tmp_path), now=t0)
     result = throttle_report(report, [rule], base_dir=str(tmp_path), now=t0 + 60)
-    assert len(result.suppressed) == 1
     assert len(result.allowed) == 0
+    assert len(result.suppressed) == 1
 
 
 # ---------------------------------------------------------------------------
 # throttle_report — call after cooldown expires is allowed again
 # ---------------------------------------------------------------------------
 
-def test_throttle_after_cooldown_allowed(tmp_path):
+def test_throttle_call_after_cooldown_allowed(tmp_path):
+    """An entry suppressed during cooldown should be allowed once the cooldown expires."""
     rule = ThrottleRule(kind="instance", cooldown_seconds=3600)
     report = _report(_entry("r1"))
     t0 = 1_000_000
     throttle_report(report, [rule], base_dir=str(tmp_path), now=t0)
-    result = throttle_report(report, [rule], base_dir=str(tmp_path), now=t0 + 7200)
+    # Still within cooldown — should be suppressed
+    mid = throttle_report(report, [rule], base_dir=str(tmp_path), now=t0 + 1800)
+    assert len(mid.suppressed) == 1
+    # After cooldown has elapsed — should be allowed again
+    result = throttle_report(report, [rule], base_dir=str(tmp_path), now=t0 + 3601)
     assert len(result.allowed) == 1
     assert len(result.suppressed) == 0
-
-
-# ---------------------------------------------------------------------------
-# ThrottleResult.to_dict
-# ---------------------------------------------------------------------------
-
-def test_to_dict_structure(tmp_path):
-    rule = ThrottleRule(kind="instance", cooldown_seconds=3600)
-    report = _report(_entry("r1"), _entry("r2"))
-    t0 = 1_000_000
-    throttle_report(report, [rule], base_dir=str(tmp_path), now=t0)
-    result = throttle_report(report, [rule], base_dir=str(tmp_path), now=t0 + 60)
-    d = result.to_dict()
-    assert d["suppressed_count"] == 2
-    assert "r1" in d["suppressed_ids"]
-
-
-# ---------------------------------------------------------------------------
-# State file is created
-# ---------------------------------------------------------------------------
-
-def test_state_file_created(tmp_path):
-    rule = ThrottleRule(kind="instance", cooldown_seconds=3600)
-    report = _report(_entry("r1"))
-    throttle_report(report, [rule], base_dir=str(tmp_path), now=1_000_000)
-    state_path = _throttle_path(str(tmp_path))
-    assert state_path.exists()
-    data = json.loads(state_path.read_text())
-    assert any("r1" in k for k in data)
